@@ -91,7 +91,7 @@ var bookData = {
           }
         ?>
     </script>
-    <script type="text/javascript" src="mono_test.js"></script>
+    <script type="text/javascript" src="mono.js"></script>
 </head>
 <body>
   <div id="readerBg">
