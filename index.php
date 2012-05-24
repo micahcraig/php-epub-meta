@@ -1,6 +1,6 @@
 <?php
     // modify this to point to your book directory
-    $bookdir = '/home/andi/Dropbox/ebooks/';
+    $bookdir = '/home/micah/view/domandtom/php-epub-meta/books/';
 
 
     error_reporting(E_ALL ^ E_NOTICE);
@@ -133,6 +133,7 @@
     <form action="" method="post" id="bookpanel" enctype="multipart/form-data">
         <input type="hidden" name="book" value="<?php echo htmlspecialchars($_REQUEST['book'])?>" />
 
+        <a href="read.php?book=<?php echo htmlspecialchars($_REQUEST['book'])?>">Read</a>
         <table>
             <tr>
                 <th>Title</th>

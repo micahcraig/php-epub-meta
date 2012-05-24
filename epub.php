@@ -6,7 +6,9 @@
  */
 class EPub {
     public $xml; //FIXME change to protected, later
+    public $toc;
     protected $xpath;
+    protected $toc_xpath;
     protected $file;
     protected $meta;
     protected $namespaces;
@@ -21,10 +23,11 @@ class EPub {
     public function __construct($file){
         // open file
         $this->file = $file;
-        $zip = new ZipArchive();
+        $zip = $this->open_zip();
+        /*new ZipArchive();
         if(!@$zip->open($this->file)){
             throw new Exception('Failed to read epub file');
-        }
+        }*/
 
         // read container data
         $data = $zip->getFromName('META-INF/container.xml');
@@ -49,7 +52,32 @@ class EPub {
         $this->xml->formatOutput = true;
         $this->xpath = new EPubDOMXPath($this->xml);
 
+        $spine = $this->xpath->query('//opf:spine')->item(0);
+        $tocid = $spine->getAttribute('toc');
+        $tochref = $this->xpath->query("//opf:manifest/opf:item[@id='$tocid']")->item(0)->attr('href');
+        $tocpath = dirname($this->meta).'/'.$tochref; 
+        $data = $zip->getFromName($tocpath);
+        if(!$data){
+            throw new Exception('Failed to access epub TOC');
+        }
+        $this->toc =  new DOMDocument();
+        $this->toc->registerNodeClass('DOMElement','EPubDOMElement');
+        $this->toc->loadXML($data);
+        $this->toc_xpath = new EPubDOMXPath($this->toc);
+        $rootNamespace = $this->toc->lookupNamespaceUri($this->toc->namespaceURI); 
+        $this->toc_xpath->registerNamespace('x', $rootNamespace); 
+
         $zip->close();
+    }
+
+    public function component($comp) {
+        $path = dirname($this->meta).'/'.$comp; 
+        $zip = $this->open_zip();
+        $data = $zip->getFromName($path);
+        if(!$data){
+            throw new Exception('Could not find component: ' . $comp);
+        }
+        return $data;
     }
 
     /**
@@ -342,6 +370,37 @@ class EPub {
     }
 
     /**
+     * Set or get the book's subjects (aka. tags)
+     *
+     * Subject should be given as array, but a comma separated string will also
+     * be accepted.
+     *
+     * @param array $subjects
+     */
+    public function Components(){
+        //getter
+        $spine = array();
+        $nodes = $this->xpath->query('//opf:spine/opf:itemref');
+        foreach($nodes as $node){
+            $idref =  $node->getAttribute('idref');
+            $spine[] = $this->xpath->query("//opf:manifest/opf:item[@id='$idref']")->item(0)->getAttribute('href');
+        }
+        return $spine;
+    }
+
+    public function Contents(){
+        //getter
+        $contents = array();
+        $nodes = $this->toc_xpath->query('//x:ncx/x:navMap/x:navPoint');
+        foreach($nodes as $node){
+            $title = $this->toc_xpath->query('x:navLabel/x:text', $node)->item(0)->nodeValue;
+            $src = $this->toc_xpath->query('x:content', $node)->item(0)->attr('src');
+            $contents[] =  array("title" => $title, "src" => $src);
+        }
+        return $contents;
+    }
+
+    /**
      * A simple getter/setter for simple meta attributes
      *
      * It should only be used for attributes that are expected to be unique
@@ -415,6 +474,14 @@ class EPub {
     protected function reparse() {
         $this->xml->loadXML($this->xml->saveXML());
         $this->xpath = new EPubDOMXPath($this->xml);
+    }
+
+    private function open_zip() {
+        $zip = new ZipArchive();
+        if(!@$zip->open($this->file)){
+            throw new Exception('Failed to read epub file');
+        }
+        return $zip;
     }
 }
 
