@@ -1,0 +1,3 @@
+[submodule "monocle"]
+	path = monocle
+	url = https://github.com/joseph/Monocle.git
